@@ -78,7 +78,7 @@ class BilibiliLoader(BaseLoader):
         for i in new_watch_dict:
             if (
                 i not in self.number_by_date_dict
-                or new_watch_dict[i] != self.number_by_date_dict[i]
+                or new_watch_dict[i] > self.number_by_date_dict[i]
             ):
                 self.number_by_date_dict[i] = new_watch_dict[i]
         self._writeback_bilibili_history()
