@@ -1,4 +1,4 @@
-name: Run Poster Generate
+name: Update Apple Health Record
 
 on:
   workflow_dispatch:
