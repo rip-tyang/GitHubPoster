@@ -41,9 +41,8 @@ jobs:
         if: steps.pip-cache.outputs.cache-hit != 'true'
 
       - name: Run sync apple health script
-        if: contains(env.TYPE, 'ns')
         run: |
-          python -m github_poster ns --ns_session_token ${{ secrets.NS_SESSION_TOKEN }} --ns_device_id ${{ secrets.NS_DEVICE_ID }} --me ${{ env.ME }}
+          python -m github_poster apple_health --apple_health_date ${{ github.event.inputs.time }} --apple_health_values ${{ github.event.inputs.move }} --apple_health_record_type move --me ${{ env.ME }}
 
       - name: Push new postger
         run: |
