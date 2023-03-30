@@ -42,7 +42,7 @@ jobs:
 
       - name: Run sync apple health script
         run: |
-          python -m github_poster apple_health --apple_health_date ${{ github.event.inputs.time }} --apple_health_value ${{ github.event.inputs.move }} --apple_health_record_type move --me ${{ env.ME }}
+          python -m github_poster apple_health --apple_health_date ${{ github.event.inputs.time }} --apple_health_value ${{ github.event.inputs.move }} --apple_health_record_type move --me rip-tyang
 
       - name: Push new postger
         run: |
