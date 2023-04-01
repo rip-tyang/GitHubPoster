@@ -136,8 +136,7 @@ class AppleHealthLoader(BaseLoader):
             elem.clear()
 
         for k, v in number_by_date_dict_from_export.items():
-            if k not in self.number_by_date_dict:
-                self.number_by_date_dict[k] = v
+            self.number_by_date_dict[k] = v
         self.number_list = list(self.number_by_date_dict.values())
 
     def get_all_track_data(self):
