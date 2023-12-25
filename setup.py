@@ -13,7 +13,7 @@ setup(
     install_requires=[
         "requests",
         "svgwrite",
-        "pendulum",
+        "pendulum==3.0.0",
         "colour",
     ],
     extras_require={
