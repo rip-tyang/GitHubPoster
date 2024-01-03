@@ -1,4 +1,5 @@
 import json
+import random
 import os
 import time
 from collections import defaultdict
@@ -48,14 +49,31 @@ class BilibiliLoader(BaseLoader):
         with open(self.bilibili_file, "w") as f:
             json.dump(self.number_by_date_dict, f, sort_keys=True)
 
-    def get_api_data(self, max_oid="", view_at="", data_list=[]):
-        r = self.session.get(
-            BILIBILI_HISTORY_URL.format(max_oid=max_oid, view_at=view_at)
-        )
+    def get_api_data(self, max_oid="", view_at="", data_list=[], total_retry=0):
+        if total_retry > 200:
+            raise LoadError("Maximum retry amount reached")
+
+        try:
+            r = self.session.get(BILIBILI_HISTORY_URL.format(max_oid=max_oid, view_at=view_at))
+        except requests.exceptions.ConnectionError as e:
+            print(e)
+            print(f"Retrying ..., {total_retry}")
+            time.sleep(5 + 2*random.random())
+            return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list, total_retry=total_retry + 1)
+
         if not r.ok:
-            raise LoadError(
-                "Can not get bilibili history data, please check your cookie"
-            )
+            try:
+                errorMsg = r.json()
+            except requests.exceptions.JSONDecodeError:
+                raise LoadError("Can not get bilibili history data, please check your cookie")
+
+            if errorMsg["code"] == -412 and errorMsg["message"]:
+                print(f"Request was banned, retrying ..., {total_retry}")
+                time.sleep(5 + 2*random.random())
+                return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list, total_retry=total_retry + 1)
+            else:
+                raise LoadError("Can not get bilibili history data, please check your cookie")
+
         data = r.json()["data"]
         if not data["list"]:
             return data_list
@@ -63,9 +81,10 @@ class BilibiliLoader(BaseLoader):
         max_oid = lst[-1]["history"]["oid"]
         view_at = lst[-1]["view_at"]
         data_list.extend(lst)
+        print(lst[-1])
         # spider rule
-        time.sleep(0.1)
-        return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list)
+        time.sleep(1 + 2*random.random())
+        return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list, total_retry=total_retry)
 
     def make_track_dict(self):
         data_list = self.get_api_data()
