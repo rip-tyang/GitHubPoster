@@ -9,7 +9,10 @@ import requests
 
 from github_poster.loader.base_loader import BaseLoader, LoadError
 from github_poster.loader.config import BILIBILI_HISTORY_URL
+from github_poster.backoff import exp_backoff_with_jitter
 
+RETRY_BASE_SEC = 2
+RETRY_CAP_SEC = 30
 
 class BilibiliLoader(BaseLoader):
     track_color = "#FB7299"
@@ -50,15 +53,16 @@ class BilibiliLoader(BaseLoader):
             json.dump(self.number_by_date_dict, f, sort_keys=True)
 
     def get_api_data(self, max_oid="", view_at="", data_list=[], total_retry=0):
-        if total_retry > 200:
+        if total_retry > 120:
             raise LoadError("Maximum retry amount reached")
 
         try:
             r = self.session.get(BILIBILI_HISTORY_URL.format(max_oid=max_oid, view_at=view_at))
         except requests.exceptions.ConnectionError as e:
             print(e)
-            print(f"Retrying ..., {total_retry}")
-            time.sleep(5 + 2*random.random())
+            wait_sec = exp_backoff_with_jitter(RETRY_BASE_SEC, RETRY_CAP_SEC, total_retry)
+            print(f"Retrying ... in {wait_sec}")
+            time.sleep(wait_sec)
             return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list, total_retry=total_retry + 1)
 
         if not r.ok:
@@ -68,8 +72,9 @@ class BilibiliLoader(BaseLoader):
                 raise LoadError("Can not get bilibili history data, please check your cookie")
 
             if errorMsg["code"] == -412 and errorMsg["message"]:
-                print(f"Request was banned, retrying ..., {total_retry}")
-                time.sleep(5 + 2*random.random())
+                wait_sec = exp_backoff_with_jitter(RETRY_BASE_SEC, RETRY_CAP_SEC, total_retry)
+                print(f"Request was banned, retrying ... in {wait_sec}")
+                time.sleep(wait_sec)
                 return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list, total_retry=total_retry + 1)
             else:
                 raise LoadError("Can not get bilibili history data, please check your cookie")
@@ -81,10 +86,10 @@ class BilibiliLoader(BaseLoader):
         max_oid = lst[-1]["history"]["oid"]
         view_at = lst[-1]["view_at"]
         data_list.extend(lst)
-        print(lst[-1])
+        print(len(data_list))
         # spider rule
-        time.sleep(1 + 2*random.random())
-        return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list, total_retry=total_retry)
+        time.sleep(.2 + 1 * random.random())
+        return self.get_api_data(max_oid=max_oid, view_at=view_at, data_list=data_list)
 
     def make_track_dict(self):
         data_list = self.get_api_data()
@@ -107,6 +112,15 @@ class BilibiliLoader(BaseLoader):
     def get_all_track_data(self):
         # first we need to activate the session with cookie str from `chrome`
         self.session.cookies = self.parse_cookie_string(self.bilibili_cookie)
+        self.session.headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': "macOS",
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+        }
 
         self.make_track_dict()
         self.make_special_number()
